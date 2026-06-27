@@ -1,5 +1,3 @@
-// Thin wrappers that unwrap the { success, data, message } envelope so callers
-// receive `data` directly. Errors bubble as axios errors (handled by callers).
 import client from './client';
 
 const unwrap = (p) => p.then((res) => res.data.data);
