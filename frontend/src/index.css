@@ -26,3 +26,14 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); color: var(-
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .player-error { position: absolute; inset: 0; display: grid; place-content: center; gap: 8px; }
+
+.overlay { position: absolute; inset: 0; pointer-events: none; }
+.overlay-meta { position: absolute; left: 16px; bottom: 24px; pointer-events: auto; max-width: 70%; }
+.overlay-cat { display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 999px;
+  background: rgba(255,255,255,.15); font-size: 12px; }
+.overlay-actions { position: absolute; right: 12px; bottom: 40px; display: grid; gap: 20px;
+  pointer-events: auto; }
+.icon-btn { background: none; border: none; color: #fff; font-size: 28px; display: grid;
+  justify-items: center; cursor: pointer; }
+.icon-btn .count { font-size: 13px; margin-top: 2px; }
+.icon-btn.is-active { color: var(--accent); }
