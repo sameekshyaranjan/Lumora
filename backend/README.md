@@ -1,39 +1,96 @@
-# Lumora Backend
+# Lumora — Backend
 
-The backend engine for Lumora. Built with Node.js, Express, and PostgreSQL.
+Express 5 REST API with PostgreSQL, JWT authentication, HLS video streaming, and AI-powered quiz generation.
 
-## Architecture
+## Stack
 
-This backend strictly enforces a layered architecture to ensure maintainability and separation of concerns:
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js 18+ |
+| Framework | Express.js 5 |
+| Database | PostgreSQL 16 (`pg` connection pool) |
+| Auth | JWT + bcrypt + HTTP-only refresh cookie |
+| Validation | `express-validator` |
+| Security | `helmet`, `express-rate-limit`, CORS |
+| Video | FFmpeg (`fluent-ffmpeg`) — HLS transcoding |
+| AI | Google Gemini 1.5 Flash |
+| Testing | Jest + Supertest |
 
-- **Routes (`src/routes/`)**: Receives the HTTP request, performs basic validation using `express-validator`, and delegates to the controller. No business logic lives here.
-- **Controllers (`src/controllers/`)**: Handles HTTP specifics (extracting params/body, sending status codes/JSON responses). Maps the request to the appropriate service layer method.
-- **Services (`src/services/`)**: Contains the core business logic and database interactions. Knows nothing about HTTP (`req` or `res`).
+## Folder Structure
 
-## Required Video Assets
+```
+src/
+├── server.js               # Entry point
+├── app.js                  # Express setup, middleware chain
+├── config/
+│   └── db.js               # pg Pool singleton
+├── routes/                 # Route declarations only
+├── controllers/            # Request/response handling
+├── middlewares/            # auth, error, rateLimit, validate
+├── services/               # Business logic and DB queries
+└── utils/                  # seed, migrate, validators, respond
+db/
+└── schema.sql              # Full PostgreSQL schema
+uploads/
+└── hls/                    # Transcoded HLS video segments (gitignored)
+```
 
-The database seeder requires three specific video files to be present in the `uploads/` directory to work properly.
+## Setup
 
-Please place the following 3 files inside `backend/uploads/`:
-1. `intro-to-systems.mp4`
-2. `data-structures-101.mp4`
-3. `networking-basics.mp4`
+```bash
+npm install
+```
 
-*(Names must match exactly as they are case-sensitive on Linux/Unix systems).*
+Create a `.env` file (see root README for all variables).
 
-## Database & Authentication
+Apply schema and seed demo data:
 
-- **Relational Integrity**: We use PostgreSQL composite primary keys on the `likes` and `bookmarks` tables (e.g. `PRIMARY KEY (user_id, video_id)`) to enforce deduping at the database layer.
-- **Atomic Operations**: Video metrics like `like_count` are incremented atomically alongside the insertion of the like record within a PostgreSQL transaction (`BEGIN`/`COMMIT`).
-- **Auth Flow**: Uses stateless JWT access tokens (15m expiry) stored in-memory on the frontend, combined with long-lived refresh tokens securely delivered via an `HttpOnly`, `Path=/auth` cookie.
+```bash
+# Drop your .mp4 source files into uploads/ first
+npm run seed
+```
 
-## Cursor Pagination
+Start dev server:
 
-The `/videos` list endpoint implements cursor-based (keyset) pagination using `created_at DESC, id DESC`. This prevents duplicate entries and missed rows when new videos are uploaded during an active user session, providing a superior scroll experience over traditional `LIMIT/OFFSET`.
+```bash
+npm run dev
+```
 
-## Local Development Commands
+## Scripts
 
-- `npm run dev`: Starts the server on port 5000 with nodemon.
-- `npm run migrate`: Drops (if existing) and recreates all tables.
-- `npm run seed`: Inserts demo users and the 3 video records.
-- `npm test`: Runs the Mocha/Chai integration tests.
+| Command | Description |
+|---|---|
+| `npm run dev` | Start with `node --watch` (auto-restart on change) |
+| `npm start` | Start in production mode |
+| `npm run seed` | Apply schema + transcode HLS + create demo user |
+| `npm run migrate` | Apply schema only |
+| `npm test` | Run Jest integration tests |
+
+## API Routes
+
+All routes are prefixed under their resource:
+
+- `/auth` — register, login, refresh, logout, me
+- `/videos` — feed, likes, bookmarks, comments, quiz, timestamps
+- `/progress` — XP, streak, video completion
+- `/bookmarks` — saved videos and timestamp bookmarks
+
+## Environment Variables
+
+| Variable | Description |
+|---|---|
+| `PORT` | Server port (default `5000`) |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `FRONTEND_ORIGIN` | Allowed CORS origin |
+| `JWT_SECRET` | HMAC secret for access tokens |
+| `REFRESH_TOKEN_SECRET` | HMAC secret for refresh tokens |
+| `ACCESS_TOKEN_TTL` | e.g. `15m` |
+| `REFRESH_TOKEN_TTL` | e.g. `7d` |
+| `REFRESH_COOKIE_PATH` | e.g. `/auth` |
+| `GEMINI_API_KEY` | Google Gemini key (optional — falls back to static quiz) |
+
+## Video Setup
+
+Videos are served over HLS. Place `.mp4` files in `uploads/` and run `npm run seed`. FFmpeg will transcode each into a `playlist.m3u8` + `.ts` segments under `uploads/hls/<name>/`.
+
+The `uploads/` directory is fully gitignored — video files are never committed.

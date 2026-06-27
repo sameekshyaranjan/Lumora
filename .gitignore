@@ -16,6 +16,8 @@ backend/uploads/*
 # Exclude original assignment/planning markdown files
 *.md
 !README.md
+!backend/README.md
+!frontend/README.md
 
 # OS/IDE Files
 .DS_Store
