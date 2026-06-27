@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { videoApi } from '../api/endpoints';
 
-export default function CategoryTabs({ active, onChange }) {
+export default function CategoryTabs({ active, onChange, inline = false }) {
   const [cats, setCats] = useState([]);
   
   useEffect(() => {
@@ -12,7 +12,7 @@ export default function CategoryTabs({ active, onChange }) {
   }, []);
 
   return (
-    <div className="category-tabs">
+    <div className={`category-tabs ${inline ? 'inline-tabs' : ''}`}>
       <button className={!active ? 'tab is-active' : 'tab'} onClick={() => onChange(null)}>All</button>
       {cats.map((c) => (
         <button key={c} className={active === c ? 'tab is-active' : 'tab'} onClick={() => onChange(c)}>{c}</button>
