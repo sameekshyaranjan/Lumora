@@ -5,37 +5,40 @@ import { selectAuth } from '../redux/authSlice';
 export default function LandingPage() {
   const { status } = useSelector(selectAuth);
 
-  // If already logged in, skip the landing page and go to courses
   if (status === 'authenticated') {
-    return <Navigate to="/courses" replace />;
+    return <Navigate to="/explore" replace />;
   }
 
   return (
-    <div className="landing-page">
-      <div className="hero-section">
-        <h1>Micro-learning for the Modern World</h1>
-        <p>Master complex topics through bite-sized, immersive vertical videos. Learn anywhere, anytime, one short at a time.</p>
-        <div className="hero-actions">
-          <Link to="/register" className="btn-primary btn-large">Start Learning for Free</Link>
-          <Link to="/login" className="btn-secondary btn-large">Log In</Link>
+    <div className="landing-hero">
+      <div className="landing-content">
+        <h1 className="gradient-text">Learn anything, <br />by scrolling.</h1>
+        <p>
+          Welcome to the next generation of online learning. 
+          Discover expert-led courses and absorb knowledge effortlessly 
+          through our immersive vertical video player.
+        </p>
+        <div className="actions" style={{ display: 'flex', gap: '16px' }}>
+          <Link to="/register" className="btn-primary" style={{ padding: '16px 32px', fontSize: '16px' }}>
+            Get Started
+          </Link>
+          <Link to="/explore" className="btn-secondary" style={{ padding: '16px 32px', fontSize: '16px' }}>
+            View Courses
+          </Link>
         </div>
       </div>
 
-      <div className="features-grid">
-        <div className="feature-card">
-          <div className="feature-icon">📱</div>
-          <h3>Vertical Feed</h3>
-          <p>TikTok-style immersive learning. Scroll through carefully curated educational shorts tailored to your interests.</p>
-        </div>
-        <div className="feature-card">
-          <div className="feature-icon">🔖</div>
-          <h3>Saved Learning</h3>
-          <p>Bookmark the most impactful videos. Build your own personal library of knowledge to review whenever you need it.</p>
-        </div>
-        <div className="feature-card">
-          <div className="feature-icon">📈</div>
-          <h3>Progress Tracking</h3>
-          <p>We automatically track your watch history and mark courses as completed. Never lose your place again.</p>
+      <div className="landing-auth-box">
+        <h2 style={{ marginBottom: '8px', fontSize: '24px' }}>Ready to learn?</h2>
+        <p className="muted" style={{ marginBottom: '24px' }}>Create an account or log in to continue.</p>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <Link to="/login" className="btn-secondary" style={{ textAlign: 'center' }}>
+            Log in to your account
+          </Link>
+          <Link to="/register" className="btn-primary" style={{ textAlign: 'center' }}>
+            Create a new account
+          </Link>
         </div>
       </div>
     </div>

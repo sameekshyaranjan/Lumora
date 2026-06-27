@@ -1,6 +1,9 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+// Fix for Supabase IPv4 Connection Pooler (PgBouncer) SSL parsing bugs in pg driver
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 const isTest = process.env.NODE_ENV === 'test';
 const connectionString = isTest
   ? process.env.TEST_DATABASE_URL
@@ -14,9 +17,7 @@ if (!connectionString) {
 
 const pool = new Pool({
   connectionString,
-  ssl: connectionString.includes('sslmode=require')
-    ? { rejectUnauthorized: false }
-    : false,
+  ssl: { rejectUnauthorized: false },
   max: 10,
   idleTimeoutMillis: 30_000,
 });

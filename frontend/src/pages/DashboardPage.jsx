@@ -1,63 +1,93 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { videoApi } from '../api/endpoints';
-import useWatchHistory from '../hooks/useWatchHistory';
 
 export default function DashboardPage() {
-  const [lessons, setLessons] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { watched } = useWatchHistory();
+  const [resumeCourse, setResumeCourse] = useState(null);
 
   useEffect(() => {
-    // Fetch all videos in the curriculum
-    videoApi.list({ limit: 10 }).then((data) => {
-      // Assuming 'Language' is our German course category
-      const curriculum = data.videos.filter(v => v.category === 'Language');
-      // Sort to ensure sequential order: Introduction -> Learning -> Story
-      const ordered = curriculum.sort((a, b) => a.title.localeCompare(b.title));
-      setLessons(ordered);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    // Read progress to see if there's a course they are currently taking
+    const savedProgress = JSON.parse(localStorage.getItem('lumoraProgress') || '{}');
+    const categories = Object.keys(savedProgress);
+    if (categories.length > 0) {
+      // Pick the first one they started for the "Continue" banner
+      const category = categories[0];
+      const completedCount = savedProgress[category].length;
+      setResumeCourse({
+        category,
+        completedCount,
+        title: `${category} Masterclass`
+      });
+    }
   }, []);
 
-  if (loading) return <div className="page"><div className="loading-more">Loading dashboard...</div></div>;
-
-  // Calculate progress
-  const watchedLessons = lessons.filter(l => watched.some(w => w.id === l.id));
-  const progressPct = lessons.length ? Math.round((watchedLessons.length / lessons.length) * 100) : 0;
-  
-  // Determine next lesson to watch
-  const nextLesson = lessons.find(l => !watched.some(w => w.id === l.id)) || lessons[0];
+  const domains = [
+    {
+      id: 'languages',
+      name: 'Language Learning',
+      courses: [
+        { id: 'german', title: 'Learn German Masterclass', category: 'Language', icon: '🇩🇪', videos: 3 },
+        { id: 'spanish', title: 'Spanish for Beginners', category: 'Spanish', icon: '🇪🇸', videos: 0 },
+      ]
+    },
+    {
+      id: 'tech',
+      name: 'Technology & IT',
+      courses: [
+        { id: 'frontend', title: 'Frontend Web Development', category: 'Tech', icon: '💻', videos: 12 },
+      ]
+    },
+    {
+      id: 'business',
+      name: 'Business & Management',
+      courses: [
+        { id: 'business', title: 'Business Fundamentals', category: 'Business', icon: '📈', videos: 8 },
+      ]
+    }
+  ];
 
   return (
-    <div className="page dashboard-page">
-      <h2>My Learning</h2>
-      
-      <div className="hero-course-card">
-        <div className="hero-course-bg"></div>
-        <div className="hero-course-content">
-          <span className="course-cat">Masterclass</span>
-          <h1>German Mastery Curriculum</h1>
-          <p>Master the German language from the ground up through 3 highly focused, sequential video lessons. You'll learn basics, grammar, and listening comprehension.</p>
-          
-          <div className="course-progress-section">
-            <div className="progress-labels">
-              <span>{watchedLessons.length} of {lessons.length} lessons completed</span>
-              <span>{progressPct}%</span>
-            </div>
-            <div className="progress-track">
-              <div className="progress-fill" style={{ width: `${progressPct}%` }}></div>
-            </div>
-          </div>
+    <div className="dashboard-container">
+      <div className="dashboard-header">
+        <h1>Explore Domains</h1>
+        <p>Choose a domain to discover courses and start learning.</p>
+      </div>
 
-          <div className="hero-actions">
-            {nextLesson && (
-              <Link to={`/course/german/lesson/${nextLesson.id}`} className="btn-primary btn-large">
-                {progressPct === 0 ? 'Start Course' : progressPct === 100 ? 'Review Course' : 'Resume Course'}
-              </Link>
-            )}
+      {resumeCourse && (
+        <div className="resume-banner">
+          <div>
+            <div className="resume-banner-label">Resume Learning</div>
+            <h2>{resumeCourse.title}</h2>
+            <p>You've completed {resumeCourse.completedCount} episodes.</p>
           </div>
+          <Link to={`/course/${resumeCourse.category}`} className="btn-resume">
+            Continue →
+          </Link>
         </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
+        {domains.map(domain => (
+          <div key={domain.id} className="domain-section">
+            <h2 className="domain-header">
+              {domain.name}
+            </h2>
+            <div className="course-grid">
+              {domain.courses.map(course => (
+                <Link to={`/course/${course.category}`} className="course-card" key={course.id}>
+                  <div className="course-icon">{course.icon}</div>
+                  <h3 className="course-title">{course.title}</h3>
+                  <div className="course-meta">
+                    <span>{course.category}</span>
+                    <span>{course.videos} lessons</span>
+                  </div>
+                  <div className="course-action">
+                    Start Learning →
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

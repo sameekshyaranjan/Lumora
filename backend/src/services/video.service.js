@@ -4,7 +4,7 @@ const { NotFoundError } = require('../utils/errors');
 const DEFAULT_LIMIT = 5;
 const MAX_LIMIT = 20;
 
-async function listVideos({ cursor, limit, category }) {
+async function listVideos({ cursor, limit, category, search }) {
   const lim = Math.min(Number(limit) || DEFAULT_LIMIT, MAX_LIMIT);
 
   let anchor = null;
@@ -23,6 +23,10 @@ async function listVideos({ cursor, limit, category }) {
   if (category) {
     params.push(category);
     where.push(`category = $${params.length}`);
+  }
+  if (search) {
+    params.push(`%${search}%`);
+    where.push(`title ILIKE $${params.length}`);
   }
   if (anchor) {
 

@@ -42,8 +42,9 @@ async function logout(req, res, next) {
   try {
 
     const opts = refreshCookieOptions();
-    delete opts.maxAge;
-    res.clearCookie('refresh_token', opts);
+    opts.maxAge = 0;
+    opts.expires = new Date(0);
+    res.cookie('refresh_token', '', opts);
     return ok(res, null, 'Logged out');
   } catch (e) { next(e); }
 }

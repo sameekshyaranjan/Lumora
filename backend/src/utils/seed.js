@@ -7,22 +7,22 @@ const { applySchema } = require('./migrate');
 
 const VIDEOS = [
   {
-    title: 'Intro to Systems Thinking',
-    description: 'A 60-second primer on how to reason about complex systems.',
-    category: 'Systems',
-    file_path: '/uploads/intro-to-systems.mp4',
+    title: 'Introduction to German',
+    description: 'Learn the very basics of the German language.',
+    category: 'Language',
+    file_path: '/uploads/Introduction_German.mp4',
   },
   {
-    title: 'Data Structures 101',
-    description: 'Arrays, lists, maps — when to reach for which.',
-    category: 'CS Fundamentals',
-    file_path: '/uploads/data-structures-101.mp4',
+    title: 'Learning German',
+    description: 'A deeper dive into German vocabulary and grammar.',
+    category: 'Language',
+    file_path: '/uploads/Learning_German.mp4',
   },
   {
-    title: 'Networking Basics',
-    description: 'Packets, ports, and the request lifecycle in plain English.',
-    category: 'Networking',
-    file_path: '/uploads/networking-basics.mp4',
+    title: 'German Story Time',
+    description: 'A short story told in German to practice your listening skills.',
+    category: 'Language',
+    file_path: '/uploads/Story_German.mp4',
   },
 ];
 

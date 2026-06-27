@@ -5,12 +5,10 @@ import { bootstrapAuth } from './redux/authSlice';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import LandingPage from './pages/LandingPage';
-import DashboardPage from './pages/DashboardPage';
-import CurriculumPlayerPage from './pages/CurriculumPlayerPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import BookmarksPage from './pages/BookmarksPage';
-import HistoryPage from './pages/HistoryPage';
+import DashboardPage from './pages/DashboardPage';
+import CoursePlayerPage from './pages/CoursePlayerPage';
 
 export default function App() {
   const dispatch = useDispatch();
@@ -20,21 +18,19 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
+        {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         
-        {/* Replace /courses with the new DashboardPage */}
-        <Route path="/courses" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        {/* Authenticated Platform Routes */}
+        <Route path="/explore" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route path="/course/:category" element={<ProtectedRoute><CoursePlayerPage /></ProtectedRoute>} />
         
-        {/* Masterclass specific route */}
-        <Route path="/course/german/lesson/:id" element={<ProtectedRoute><CurriculumPlayerPage /></ProtectedRoute>} />
-        
-        {/* Legacy route fallback */}
-        <Route path="/course/:id" element={<Navigate to="/courses" replace />} />
-        
-        <Route path="/bookmarks" element={<ProtectedRoute><BookmarksPage /></ProtectedRoute>} />
-        <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
+        {/* Fallbacks */}
+        <Route path="/feed" element={<Navigate to="/explore" replace />} />
+        <Route path="/courses" element={<Navigate to="/explore" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

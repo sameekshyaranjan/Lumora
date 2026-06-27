@@ -3,8 +3,8 @@ const { ok, created } = require('../utils/respond');
 
 async function list(req, res, next) {
   try {
-    const { cursor, limit, category } = req.query;
-    const data = await videoService.listVideos({ cursor, limit, category });
+    const { cursor, limit, category, search } = req.query;
+    const data = await videoService.listVideos({ cursor, limit, category, search });
     return ok(res, data, 'OK'); // data = { videos, nextCursor }
   } catch (e) { next(e); }
 }
