@@ -1,0 +1,7 @@
+node_modules/
+.env
+# Do NOT commit the actual video binaries — they are placed manually (Stage 9).
+uploads/*.mp4
+# keep the folder in git
+!uploads/.gitkeep
+coverage/
