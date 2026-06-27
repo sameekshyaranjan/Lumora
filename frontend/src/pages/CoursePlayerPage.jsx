@@ -73,7 +73,6 @@ export default function CoursePlayerPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [completedVideos, setCompletedVideos] = useState([]);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [likedVideos, setLikedVideos] = useState({});
   const [activeCommentVideoId, setActiveCommentVideoId] = useState(null);
 
@@ -285,20 +284,6 @@ export default function CoursePlayerPage() {
         </svg>
       </div>
       {sidebarOpen && <div className="mobile-sidebar-overlay" onClick={() => setSidebarOpen(false)}></div>}
-
-      {/* Feedback Modal */}
-      {feedbackOpen && (
-        <div className="feedback-modal-overlay" onClick={() => setFeedbackOpen(false)}>
-          <div className="feedback-modal" onClick={e => e.stopPropagation()}>
-            <h3>Send Feedback</h3>
-            <textarea placeholder="Was this episode helpful? Let us know..."></textarea>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button className="btn-secondary" onClick={() => setFeedbackOpen(false)}>Cancel</button>
-              <button className="btn-primary" onClick={() => setFeedbackOpen(false)}>Submit</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* AI Quiz Modal */}
       {quizModalOpen && (
