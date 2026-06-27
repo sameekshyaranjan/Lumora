@@ -1,0 +1,82 @@
+require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const bcrypt = require('bcrypt');
+const { pool, query } = require('../config/db');
+const { applySchema } = require('./migrate');
+
+const VIDEOS = [
+  {
+    title: 'Intro to Systems Thinking',
+    description: 'A 60-second primer on how to reason about complex systems.',
+    category: 'Systems',
+    file_path: '/uploads/intro-to-systems.mp4',
+  },
+  {
+    title: 'Data Structures 101',
+    description: 'Arrays, lists, maps — when to reach for which.',
+    category: 'CS Fundamentals',
+    file_path: '/uploads/data-structures-101.mp4',
+  },
+  {
+    title: 'Networking Basics',
+    description: 'Packets, ports, and the request lifecycle in plain English.',
+    category: 'Networking',
+    file_path: '/uploads/networking-basics.mp4',
+  },
+];
+
+async function ensureFilesPresent() {
+  const missing = VIDEOS
+    .map((v) => path.join(__dirname, '..', '..', v.file_path.replace('/uploads/', 'uploads/')))
+    .filter((p) => !fs.existsSync(p));
+  if (missing.length) {
+    console.warn(
+      '[seed] WARNING: these video files are missing on disk:\n  ' +
+      missing.join('\n  ') +
+      '\n[seed] Rows will still be inserted, but playback will 404 until files are placed.'
+    );
+  }
+}
+
+async function ensureDemoUser() {
+  const email = 'demo@lumora.dev';
+  const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
+  if (existing.rowCount > 0) return existing.rows[0].id;
+  const hash = await bcrypt.hash('password123', 12);
+  const { rows } = await query(
+    `INSERT INTO users (email, password_hash, name)
+     VALUES ($1, $2, $3) RETURNING id`,
+    [email, hash, 'Demo Learner']
+  );
+  console.log('[seed] demo user created -> demo@lumora.dev / password123');
+  return rows[0].id;
+}
+
+async function seedVideos() {
+  for (const v of VIDEOS) {
+    const exists = await query('SELECT id FROM videos WHERE file_path = $1', [v.file_path]);
+    if (exists.rowCount > 0) {
+      console.log(`[seed] skip (already present): ${v.title}`);
+      continue;
+    }
+    await query(
+      `INSERT INTO videos (title, description, category, file_path)
+       VALUES ($1, $2, $3, $4)`,
+      [v.title, v.description, v.category, v.file_path]
+    );
+    console.log(`[seed] inserted: ${v.title}`);
+  }
+}
+
+async function run() {
+  await applySchema();
+  await ensureFilesPresent();
+  await ensureDemoUser();
+  await seedVideos();
+}
+
+run()
+  .then(() => pool.end())
+  .then(() => { console.log('[seed] done'); process.exit(0); })
+  .catch((e) => { console.error('[seed] failed', e); process.exit(1); });
