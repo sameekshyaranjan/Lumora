@@ -62,3 +62,19 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); color: var(-
 .feed-skeleton { height: 100vh; background: #000; position: relative; }
 .skeleton-block { position: absolute; inset: 0; background: linear-gradient(90deg,#111,#1a1a1a,#111);
   background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+
+.page { padding: 72px 16px 32px; max-width: 640px; margin: 0 auto; }
+.saved-list { list-style: none; padding: 0; display: grid; gap: 12px; }
+.saved-item { display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; background: #16161c; border-radius: 12px; }
+.badge-completed { color: #2ecc71; font-size: 13px; }
+.badge-progress { color: #f1c40f; font-size: 13px; }
+.continue-row { position: fixed; top: 52px; left: 0; right: 0; z-index: 9; padding: 8px 16px; }
+.continue-label { font-size: 12px; color: #aaa; }
+.continue-items { display: flex; gap: 8px; overflow-x: auto; padding-top: 6px; }
+.continue-chip { padding: 6px 10px; border-radius: 8px; background: #1d1d24; color: #eee;
+  font-size: 12px; white-space: nowrap; text-decoration: none; }
+
+.auth-page { max-width: 360px; margin: 80px auto; display: grid; gap: 12px; padding: 0 16px; }
+.auth-page input { padding: 12px; border-radius: 8px; border: 1px solid #333; background: #0e0e12; color: #fff; }
+.auth-page button { padding: 12px; border-radius: 8px; border: none; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
