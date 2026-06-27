@@ -10,10 +10,13 @@ Built with a robust, clean architecture featuring a Node.js/Express backend and 
 - **Strict Layered Architecture:** Requests flow strictly through `Routes` → `Controllers` → `Services` → `Database`. No business logic resides in the routing layer.
 - **Security First:** Features robust bcrypt password hashing, HTTP-only refresh cookies for XSS protection, Helmet for CSP headers, and rate limiting against brute-force attacks.
 - **Relational Integrity:** PostgreSQL handles complex relationships via composite primary keys (preventing duplicate likes/bookmarks) and atomic increment operations using robust transactional boundaries.
+- **Keyset Pagination:** The video feed uses cursor pagination (`created_at DESC, id DESC`) rather than `OFFSET` to prevent duplicate data fetches as new videos are uploaded during an active user session.
 
-**Frontend (React + Vite + Redux Toolkit) (Coming Soon)**
+**Frontend (React + Vite + Redux Toolkit)**
 - **Modern UI:** Built for smooth, native-feeling vertical video scrolling.
-- **State Management:** Utilizes Redux Toolkit for seamless authentication state and data caching.
+- **State Management:** Utilizes Redux Toolkit for seamless authentication state and data caching (`authSlice` handles normalized user state).
+- **Silent Refresh Flow:** Centralized Axios client intercepts 401s, silently requests a new access token using the HTTP-only cookie, and replays failed requests automatically without logging the user out.
+- **Optimistic UI Updates:** Like and Bookmark buttons update instantly on click, syncing invisibly with the server, and automatically rolling back the UI if the network fails.
 - **Performance:** Optimized lazy-loading and Intersection Observers to guarantee media only plays when fully visible in the viewport.
 
 ## Getting Started
@@ -22,42 +25,46 @@ Built with a robust, clean architecture featuring a Node.js/Express backend and 
 - Node.js (v18+ recommended)
 - PostgreSQL (Local, Neon, or Supabase)
 
-### Backend Setup
+### Full Run Order
+To spin up both servers and connect them:
 
-1. **Navigate to the backend directory:**
+1. **Backend setup:**
    ```bash
    cd backend
-   ```
-
-2. **Install dependencies:**
-   ```bash
+   cp .env.example .env
+   # Fill DATABASE_URL, JWT_SECRET, REFRESH_TOKEN_SECRET in .env
    npm install
    ```
 
-3. **Environment Configuration:**
-   Copy the example environment file and configure your secrets.
-   ```bash
-   cp .env.example .env
-   ```
-   *Note: Ensure you generate strong random strings for `JWT_SECRET` and `REFRESH_TOKEN_SECRET`, and provide a valid PostgreSQL connection string in `DATABASE_URL`.*
-
-4. **Run Database Migrations:**
-   Automatically create the required tables and indexes.
+2. **Database Setup:**
    ```bash
    npm run migrate
+   npm run seed
+   # The seed command creates demo@lumora.dev / password123
    ```
 
-5. **Start the Development Server:**
+3. **Start backend server:**
    ```bash
    npm run dev
+   # Runs on http://localhost:5000
    ```
 
-### Frontend Setup
-*Frontend instructions will be added as the client application is finalized.*
+4. **Frontend setup (in a new terminal):**
+   ```bash
+   cd frontend
+   echo "VITE_API_URL=http://localhost:5000" > .env
+   npm install
+   npm run dev
+   # Runs on http://localhost:5173
+   ```
+
+### Demo Credentials
+Log into the frontend using:
+- **Email:** `demo@lumora.dev`
+- **Password:** `password123`
 
 ## Key Technical Decisions
-- **Stateless JWT Authentication:** Access tokens are short-lived and stored securely in memory, while long-lived refresh tokens are handled securely via `HttpOnly` cookies.
-- **Keyset Pagination:** The video feed uses keyset/cursor pagination (`created_at DESC, id DESC`) rather than `OFFSET` to prevent duplicate data fetches as new videos are uploaded during an active user session. 
+- **Stateless JWT Authentication:** Access tokens are short-lived (15m) and stored securely in memory, while long-lived refresh tokens (7d) are handled securely via `HttpOnly` cookies.
 - **Centralized Error Handling:** All API errors are routed through a singular error middleware, ensuring the client receives a strictly typed `{ success, data, message }` response envelope regardless of where the failure occurred.
 
 ## License
