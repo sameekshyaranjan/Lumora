@@ -1,9 +1,72 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { videoApi } from '../api/endpoints';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { videoApi, progressApi, quizApi, timestampApi } from '../api/endpoints';
+import { useSelector } from 'react-redux';
+import { selectAuth } from '../redux/authSlice';
+import Hls from 'hls.js';
+import CommentSheet from '../components/CommentSheet';
+
+const HLSVideoPlayer = ({ src, startTime, onTimeUpdate, onEnded, videoRef }) => {
+  const localRef = useRef(null);
+  
+  useEffect(() => {
+    if (videoRef) {
+      if (typeof videoRef === 'function') {
+        videoRef(localRef.current);
+      } else {
+        videoRef.current = localRef.current;
+      }
+    }
+  }, [videoRef]);
+
+  useEffect(() => {
+    let hls;
+    const video = localRef.current;
+
+    const handleLoadedMetadata = () => {
+      if (startTime > 0) video.currentTime = startTime;
+    };
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+
+    if (src.endsWith('.m3u8')) {
+      if (Hls.isSupported()) {
+        hls = new Hls();
+        hls.loadSource(src);
+        hls.attachMedia(video);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = src;
+      }
+    } else {
+      video.src = src;
+    }
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      if (hls) hls.destroy();
+    };
+  }, [src, startTime]);
+
+  return (
+    <video
+      ref={localRef}
+      className="feed-video"
+      playsInline
+      crossOrigin="anonymous"
+      controls
+      controlsList="nodownload"
+      onTimeUpdate={onTimeUpdate}
+      onEnded={onEnded}
+    />
+  );
+};
 
 export default function CoursePlayerPage() {
   const { category } = useParams();
+  const [searchParams] = useSearchParams();
+  const targetVideoId = searchParams.get('videoId');
+  const targetTime = searchParams.get('t');
+  
+  const { status } = useSelector(selectAuth);
   
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,18 +75,36 @@ export default function CoursePlayerPage() {
   const [completedVideos, setCompletedVideos] = useState([]);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [likedVideos, setLikedVideos] = useState({});
+  const [activeCommentVideoId, setActiveCommentVideoId] = useState(null);
+
+  const [quizModalOpen, setQuizModalOpen] = useState(false);
+  const [activeQuiz, setActiveQuiz] = useState(null);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizAnswers, setQuizAnswers] = useState({});
+  const [quizResult, setQuizResult] = useState(null);
   
   const containerRef = useRef(null);
   const videoRefs = useRef([]);
 
   useEffect(() => {
-    // Load progress from local storage
-    const savedProgress = JSON.parse(localStorage.getItem('lumoraProgress') || '{}');
-    if (savedProgress[category]) {
-      setCompletedVideos(savedProgress[category]);
-    } else {
-      setCompletedVideos([]);
-    }
+    const fetchProgress = async () => {
+      if (status === 'authenticated') {
+        try {
+          const res = await progressApi.get(category);
+          setCompletedVideos(res.completed || []);
+        } catch (e) {
+          console.error('Failed to fetch progress', e);
+        }
+      } else {
+        const savedProgress = JSON.parse(localStorage.getItem('lumoraProgress') || '{}');
+        if (savedProgress[category]) {
+          setCompletedVideos(savedProgress[category]);
+        } else {
+          setCompletedVideos([]);
+        }
+      }
+    };
+    fetchProgress();
 
     const fetchVideos = async () => {
       try {
@@ -36,7 +117,19 @@ export default function CoursePlayerPage() {
       }
     };
     fetchVideos();
-  }, [category]);
+  }, [category, status]);
+
+  useEffect(() => {
+    if (videos.length > 0 && targetVideoId) {
+      const idx = videos.findIndex(v => v.id === targetVideoId);
+      if (idx !== -1) {
+        setTimeout(() => {
+          const el = document.querySelector(`[data-index="${idx}"]`);
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 500);
+      }
+    }
+  }, [videos, targetVideoId]);
 
   const handleIntersection = useCallback((entries) => {
     entries.forEach(entry => {
@@ -65,17 +158,27 @@ export default function CoursePlayerPage() {
     return () => observer.disconnect();
   }, [videos.length, handleIntersection]);
 
-  const markCompleted = (videoId, index) => {
+  const markCompleted = async (videoId, index) => {
     if (!completedVideos.includes(videoId)) {
       setCompletedVideos(prev => {
         if (prev.includes(videoId)) return prev;
         const newProgress = [...prev, videoId];
         
-        const allProgress = JSON.parse(localStorage.getItem('lumoraProgress') || '{}');
-        allProgress[category] = newProgress;
-        localStorage.setItem('lumoraProgress', JSON.stringify(allProgress));
+        if (status !== 'authenticated') {
+          const allProgress = JSON.parse(localStorage.getItem('lumoraProgress') || '{}');
+          allProgress[category] = newProgress;
+          localStorage.setItem('lumoraProgress', JSON.stringify(allProgress));
+        }
         return newProgress;
       });
+
+      if (status === 'authenticated') {
+        try {
+          await progressApi.markCompleted(videoId, category);
+        } catch (e) {
+          console.error('Failed to sync progress', e);
+        }
+      }
       
       // Only auto-scroll if it's naturally ending and it's the current video
       if (index === currentIndex && index < videos.length - 1) {
@@ -85,18 +188,77 @@ export default function CoursePlayerPage() {
     }
   };
 
-  const handleTimeUpdate = (e, videoId, index) => {
-    const videoElement = e.target;
-    if (!videoElement.duration) return;
-    const progress = videoElement.currentTime / videoElement.duration;
-    // Mark complete at 90% watched to ensure it fires reliably
-    if (progress > 0.9 && !completedVideos.includes(videoId)) {
+  const loadQuiz = async (videoId, index) => {
+    setQuizLoading(true);
+    setQuizModalOpen(true);
+    setQuizAnswers({});
+    setQuizResult(null);
+    try {
+      const res = await quizApi.getQuiz(videoId);
+      setActiveQuiz({ videoId, index, questions: res.quiz });
+    } catch(e) {
+      console.error(e);
+      setQuizModalOpen(false);
+      markCompleted(videoId, index);
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  const submitQuiz = async () => {
+    if (!activeQuiz) return;
+    let score = 0;
+    activeQuiz.questions.forEach((q, i) => {
+      if (quizAnswers[i] === q.answer) score++;
+    });
+    
+    try {
+      const res = await quizApi.submitQuiz(activeQuiz.videoId, score);
+      setQuizResult({ score, total: activeQuiz.questions.length, bonusXp: res.bonusXp });
+      // Wait a moment then close and mark completed
+      setTimeout(() => {
+        setQuizModalOpen(false);
+        markCompleted(activeQuiz.videoId, activeQuiz.index);
+        setActiveQuiz(null);
+      }, 3000);
+    } catch(e) {
+      console.error(e);
+      setQuizModalOpen(false);
       markCompleted(videoId, index);
     }
   };
 
+  const handleVideoEnded = (videoId, index) => {
+    if (status === 'authenticated' && !completedVideos.includes(videoId)) {
+      loadQuiz(videoId, index);
+    } else {
+      markCompleted(videoId, index);
+    }
+  };
+
+  const handleTimeUpdate = (e, videoId, index) => {
+    const videoElement = e.target;
+    if (!videoElement.duration) return;
+    const progress = videoElement.currentTime / videoElement.duration;
+    // We handle completion in onEnded now to show the quiz
+  };
+
   const toggleLike = (videoId) => {
     setLikedVideos(prev => ({ ...prev, [videoId]: !prev[videoId] }));
+  };
+
+  const saveBookmark = async (videoId, index) => {
+    if (status !== 'authenticated') return alert('Please login to bookmark');
+    const time = videoRefs.current[index]?.currentTime;
+    if (!time) return;
+    
+    try {
+      await timestampApi.saveTimestamp(videoId, time, 'Saved from video player');
+      alert(`Bookmark saved at ${Math.floor(time)}s`);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to save bookmark');
+    }
   };
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading course content...</div>;
@@ -134,6 +296,60 @@ export default function CoursePlayerPage() {
               <button className="btn-secondary" onClick={() => setFeedbackOpen(false)}>Cancel</button>
               <button className="btn-primary" onClick={() => setFeedbackOpen(false)}>Submit</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Quiz Modal */}
+      {quizModalOpen && (
+        <div className="feedback-modal-overlay">
+          <div className="feedback-modal" style={{ maxWidth: '500px', width: '100%' }}>
+            {quizLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <h2 className="gradient-text">🤖 Generating AI Quiz...</h2>
+                <p>Analyzing video content...</p>
+              </div>
+            ) : quizResult ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <h1 style={{ fontSize: '48px', margin: '0' }}>{quizResult.score}/{quizResult.total}</h1>
+                <h2 className="gradient-text">Quiz Complete!</h2>
+                <p>You earned <strong style={{ color: 'var(--accent-primary)' }}>+{quizResult.bonusXp} XP</strong></p>
+                <p style={{ fontSize: '14px', color: 'var(--fg-muted)', marginTop: '20px' }}>Continuing to next lesson...</p>
+              </div>
+            ) : activeQuiz ? (
+              <div>
+                <h2 className="gradient-text" style={{ marginBottom: '24px' }}>Pop Quiz!</h2>
+                <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: '12px' }}>
+                  {activeQuiz.questions.map((q, idx) => (
+                    <div key={idx} style={{ marginBottom: '24px', background: 'var(--bg-surface)', padding: '16px', borderRadius: '12px' }}>
+                      <p style={{ fontWeight: 600, marginBottom: '16px' }}>{idx + 1}. {q.question}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {q.options.map((opt, oIdx) => (
+                          <label key={oIdx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
+                            <input 
+                              type="radio" 
+                              name={`q-${idx}`} 
+                              checked={quizAnswers[idx] === opt}
+                              onChange={() => setQuizAnswers(prev => ({ ...prev, [idx]: opt }))}
+                            />
+                            <span>{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                  <button className="btn-secondary" onClick={() => {
+                    setQuizModalOpen(false);
+                    markCompleted(activeQuiz.videoId, activeQuiz.index);
+                  }}>Skip Quiz</button>
+                  <button className="btn-primary" onClick={submitQuiz} disabled={Object.keys(quizAnswers).length < activeQuiz.questions.length}>
+                    Submit Answers
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       )}
@@ -201,17 +417,13 @@ export default function CoursePlayerPage() {
 
             return (
               <div key={video.id} className="feed-video-wrapper" data-index={index}>
-                <video 
-                  ref={el => videoRefs.current[index] = el}
+                <HLSVideoPlayer 
+                  videoRef={el => videoRefs.current[index] = el}
                   src={videoUrl}
-                  className="feed-video"
-                  playsInline
-                  crossOrigin="anonymous"
-                  controls
-                  controlsList="nodownload"
+                  startTime={video.id === targetVideoId ? parseFloat(targetTime) : 0}
                   onTimeUpdate={(e) => handleTimeUpdate(e, video.id, index)}
-                  onEnded={() => markCompleted(video.id, index)}
-                ></video>
+                  onEnded={() => handleVideoEnded(video.id, index)}
+                />
 
                 <div className="player-actions">
                   <div 
@@ -221,14 +433,16 @@ export default function CoursePlayerPage() {
                   >
                     {isLiked ? '❤️' : '🤍'}
                   </div>
-                  <div className="player-action-btn" title="Feedback" onClick={() => setFeedbackOpen(true)}>💬</div>
-                  <div className="player-action-btn" title="Bookmark">🔖</div>
+                  <div className="player-action-btn" title="Comments" onClick={() => setActiveCommentVideoId(video.id)}>💬</div>
+                  <div className="player-action-btn" title="Bookmark" onClick={() => saveBookmark(video.id, index)}>🔖</div>
                 </div>
               </div>
             );
           })}
         </div>
       </div>
+
+      <CommentSheet videoId={activeCommentVideoId} onClose={() => setActiveCommentVideoId(null)} />
     </div>
   );
 }

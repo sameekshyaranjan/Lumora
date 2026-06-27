@@ -8,6 +8,7 @@ const env = require('./config/env');
 const authRoutes = require('./routes/auth.routes');
 const videoRoutes = require('./routes/video.routes');
 const bookmarkRoutes = require('./routes/bookmark.routes');
+const progressRoutes = require('./routes/progress.routes');
 const { notFound, errorHandler } = require('./middlewares/error.middleware');
 
 function buildApp() {
@@ -21,7 +22,7 @@ function buildApp() {
         useDefaults: true,
         directives: {
           defaultSrc: ["'self'"],
-          mediaSrc: ["'self'", 'blob:'],         // our /uploads videos
+          mediaSrc: ["'self'", 'blob:'],
           imgSrc: ["'self'", 'data:', 'blob:'],
           connectSrc: ["'self'", env.frontendOrigin],
           scriptSrc: ["'self'"],
@@ -57,6 +58,7 @@ function buildApp() {
   app.use('/auth', authRoutes);
   app.use('/videos', videoRoutes);
   app.use('/bookmarks', bookmarkRoutes);
+  app.use('/progress', progressRoutes);
 
   app.use(notFound);
   app.use(errorHandler);

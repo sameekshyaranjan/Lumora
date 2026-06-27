@@ -22,3 +22,20 @@ export const videoApi = {
   comments: (id) => unwrap(client.get(`/videos/${id}/comments`)),
   bookmarks: () => unwrap(client.get('/bookmarks')),
 };
+
+export const progressApi = {
+  get: (category) => unwrap(client.get(`/progress/${category}`)),
+  markCompleted: (videoId, category) => unwrap(client.post(`/progress/${videoId}`, { category })),
+  stats: () => unwrap(client.get('/progress/stats')),
+};
+
+export const quizApi = {
+  getQuiz: (videoId) => unwrap(client.get(`/videos/${videoId}/quiz`)),
+  submitQuiz: (videoId, score) => unwrap(client.post(`/videos/${videoId}/quiz/submit`, { score })),
+};
+
+export const timestampApi = {
+  saveTimestamp: (videoId, timestamp, note) => unwrap(client.post(`/videos/${videoId}/timestamps`, { timestamp, note })),
+  getVideoTimestamps: (videoId) => unwrap(client.get(`/videos/${videoId}/timestamps`)),
+  getAllTimestamps: () => unwrap(client.get('/bookmarks/timestamps')),
+};
